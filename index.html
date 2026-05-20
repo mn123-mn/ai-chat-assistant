@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI智能助手</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:Microsoft YaHei,sans-serif}
+        body{background:#eef2f7;height:100vh;display:flex;overflow:hidden}
+        .sidebar{width:260px;background:#165DFF;color:#fff;padding:20px 15px;display:flex;flex-direction:column}
+        .sidebar-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+        .sidebar h2{font-size:18px}
+        .delete-btn{background:#ff4d4f;border:none;color:#fff;padding:6px 10px;border-radius:6px;font-size:12px;display:none}
+        .delete-btn.show{display:block}
+        .new-chat{width:100%;padding:10px;border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;cursor:pointer;margin-bottom:20px;font-size:15px}
+        .new-chat:hover{background:rgba(255,255,255,.3)}
+        .history-list{flex:1;overflow:auto}
+        .history-item{padding:10px;border-radius:8px;margin-bottom:5px;cursor:pointer;font-size:14px}
+        .history-item:hover{background:rgba(255,255,255,.15)}
+        .main{flex:1;display:flex;flex-direction:column}
+        .header{padding:15px 30px;background:#fff;box-shadow:0 2px 5px #00000010}
+        .func-bar{display:flex;gap:10px}
+        .func-btn{padding:7px 14px;background:#165DFF;color:#fff;border:none;border-radius:6px;cursor:pointer}
+        .upload-bar{padding:12px 30px;background:#f9fbfd;border-bottom:1px solid #eee;display:flex;gap:10px;align-items:center}
+        .file-btn,.upload-btn{padding:7px 15px;border-radius:20px;border:none;cursor:pointer;color:#fff}
+        .file-btn{background:#165DFF}
+        .upload-btn{background:#0f4cd9}
+        .chat-box{flex:1;padding:20px 30px;overflow-y:auto;background:#fcfdff}
+        .msg{display:flex;gap:12px;margin-bottom:20px;align-items:flex-start}
+        .msg.user{flex-direction:row-reverse}
+        .avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold}
+        .ai-avatar{background:#165DFF;color:#fff}
+        .user-avatar{background:#e5e7eb;color:#333}
+        .bubble{max-width:75%;padding:12px 15px;border-radius:15px;line-height:1.6;font-size:15px;white-space:pre-wrap}
+        .ai-bubble{background:#fff;border:1px solid #e5e7eb}
+        .user-bubble{background:#165DFF;color:#fff}
+        .loading{border:1px dashed #94bfff;color:#165DFF;background:#f0f7ff}
+        .input-bar{padding:15px 30px;border-top:1px solid #eee;background:#fff;display:flex;gap:10px}
+        #inputText{flex:1;padding:13px 16px;border:1px solid #ddd;border-radius:30px;font-size:15px}
+        #sendBtn{width:100px;background:#165DFF;color:#fff;border:none;border-radius:30px;cursor:pointer}
+        input[type="file"]{display:none}
+        .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:#00000055;display:none;align-items:center;justify-content:center;z-index:999}
+        .modal.show{display:flex}
+        .modal-box{width:520px;background:#fff;border-radius:10px;padding:22px;position:relative}
+        .close-top{position:absolute;top:15px;right:15px;font-size:22px;cursor:pointer;color:#666}
+        .modal textarea{width:100%;height:130px;padding:10px;border:1px solid #ddd;border-radius:6px;margin:10px 0;resize:none}
+        .btns{display:flex;justify-content:flex-end;gap:10px;margin-top:8px}
+        .btn-close{padding:6px 15px;background:#eee;border:none;border-radius:5px;cursor:pointer}
+        .btn-ok{padding:6px 15px;background:#165DFF;color:#fff;border:none;border-radius:5px;cursor:pointer}
+        .export-btn{margin-top:8px;padding:4px 10px;background:#27ae60;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer}
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-top">
+            <h2>历史对话</h2>
+            <button class="delete-btn" id="delBtn" onclick="deleteCurrentSession()">删除</button>
+        </div>
+        <button class="new-chat" onclick="newChatSession()">➕ 新建会话</button>
+        <div class="history-list" id="historyList"></div>
+    </div>
+    <div class="main">
+        <div class="header">
+            <div class="func-bar">
+                <button class="func-btn" onclick="openImg()">🎨生成图片</button>
+                <button class="func-btn" onclick="openSum()">📄文档摘要</button>
+                <button class="func-btn" onclick="openTrans()">🌐专业翻译</button>
+                <button class="func-btn" onclick="exportChat()">💾导出聊天</button>
+                <button class="func-btn" onclick="clearChat()">清空对话</button>
+            </div>
+        </div>
+        <div class="upload-bar">
+            <label class="file-btn">选择知识库<input type="file" id="file" accept=".txt"></label>
+            <button class="upload-btn" onclick="uploadKb()">上传知识库</button>
+        </div>
+        <div class="chat-box" id="chatBox"></div>
+        <div class="input-bar">
+            <input id="inputText" placeholder="输入问题，回车发送" onkeydown="if(event.key==='Enter')sendMsg()">
+            <button id="sendBtn" onclick="sendMsg()">发送</button>
+        </div>
+    </div>
+
+    <div class="modal" id="imgModal">
+        <div class="modal-box">
+            <span class="close-top" onclick="closeImg()">×</span>
+            <h3>AI图片生成</h3>
+            <textarea id="imgWords" placeholder="输入图片描述"></textarea>
+            <div id="imgShow"></div>
+            <div class="btns">
+                <button class="btn-close" onclick="closeImg()">关闭</button>
+                <button class="btn-ok" onclick="createImg()">生成</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="sumModal">
+        <div class="modal-box">
+            <span class="close-top" onclick="closeSum()">×</span>
+            <h3>文档摘要</h3>
+            <textarea id="sumText" placeholder="粘贴文本"></textarea>
+            <div class="btns">
+                <button class="btn-close" onclick="closeSum()">关闭</button>
+                <button class="btn-ok" onclick="getSummary()">生成摘要</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="transModal">
+        <div class="modal-box">
+            <span class="close-top" onclick="closeTrans()">×</span>
+            <h3>翻译</h3>
+            <textarea id="transText" placeholder="输入文本"></textarea>
+            <div style="margin:6px 0">
+                <label><input type="radio" name="transType" value="auto" checked>自动</label>
+                <label><input type="radio" name="transType" value="zh2en">中→英</label>
+                <label><input type="radio" name="transType" value="en2zh">英→中</label>
+            </div>
+            <div class="btns">
+                <button class="btn-close" onclick="closeTrans()">关闭</button>
+                <button class="btn-ok" onclick="doTrans()">翻译</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let nowSid = null;
+    const chatBox = document.getElementById('chatBox');
+
+    window.onload = () => {
+        newChatSession();
+        refreshHistory();
+    }
+
+    function newChatSession(){
+        fetch('/new_session', {method:'POST'})
+        .then(()=>{
+            chatBox.innerHTML = '';
+            refreshHistory();
+            document.getElementById('delBtn').classList.remove('show');
+        });
+    }
+
+    function refreshHistory(){
+        fetch('/list_session')
+        .then(r=>r.json())
+        .then(list=>{
+            let html = '';
+            list.forEach(item=>{
+                html += `<div class="history-item" onclick="loadSession('${item.sid}')">${item.title}</div>`;
+            });
+            document.getElementById('historyList').innerHTML = html;
+        });
+    }
+
+    function loadSession(sid){
+        nowSid = sid;
+        fetch('/load_session', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({sid:sid})
+        }).then(r=>r.json()).then(msgs=>{
+            chatBox.innerHTML = '';
+            msgs.forEach(m=>{
+                addMsg(m.role==='user'?'我':'AI', m.content, m.role, false);
+            });
+            document.getElementById('delBtn').classList.add('show');
+        });
+    }
+
+    function deleteCurrentSession() {
+        if (!nowSid) {
+            alert("请先选择一个会话");
+            return;
+        }
+        if (!confirm("确定删除该会话？删除后无法恢复")) return;
+
+        fetch("/delete_session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sid: nowSid })
+        })
+        .then(res => res.json())
+        .then(() => {
+            nowSid = null;
+            refreshHistory();
+            newChatSession();
+        });
+    }
+
+    function openImg(){document.getElementById('imgModal').classList.add('show')}
+    function closeImg(){document.getElementById('imgModal').classList.remove('show')}
+    function createImg(){
+        let w = document.getElementById('imgWords').value.trim();
+        if(!w)return alert('输入描述');
+        fetch('/gen_img',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({prompt:w})
+        }).then(r=>r.json()).then(d=>{
+            if(d.url) document.getElementById('imgShow').innerHTML=`<img src="${d.url}" style="max-width:100%">`;
+            else alert(d.msg);
+        })
+    }
+
+    function openSum(){document.getElementById('sumModal').classList.add('show')}
+    function closeSum(){document.getElementById('sumModal').classList.remove('show')}
+    function getSummary(){
+        let t = document.getElementById('sumText').value.trim();
+        if(!t)return alert('请输入内容');
+        fetch('/doc_summary',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({text:t})
+        }).then(r=>r.json()).then(d=>{
+            closeSum();
+            let canExport = !d.res.includes("AI服务繁忙");
+            addMsg(`AI`,`📄文档摘要：\n${d.res}`,'ai',canExport,'summary',d.res);
+        })
+    }
+
+    function openTrans(){document.getElementById('transModal').classList.add('show')}
+    function closeTrans(){document.getElementById('transModal').classList.remove('show')}
+    function doTrans(){
+        let t = document.getElementById('transText').value.trim();
+        let m = document.querySelector('input[name="transType"]:checked').value;
+        if(!t)return alert('请输入内容');
+        fetch('/translate',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({text:t,mode:m})
+        }).then(r=>r.json()).then(d=>{
+            closeTrans();
+            let canExport = !d.res.includes("AI服务繁忙");
+            addMsg(`AI`,`🌐翻译结果：\n${d.res}`,'ai',canExport,'trans',d.res);
+        })
+    }
+
+    function addMsg(av,text,role,showExport,type,content){
+        let div = document.createElement('div');
+        div.className = `msg ${role==='user'?'user':''}`;
+        let btn = showExport ? `<button class="export-btn" onclick="down('${type}',\`${content}\`)">导出</button>` : '';
+        div.innerHTML = `
+            <div class="avatar ${role==='ai'?'ai-avatar':'user-avatar'}">${av}</div>
+            <div>
+                <div class="bubble ${role==='ai'?'ai-bubble':'user-bubble'}">${text}</div>
+                ${btn}
+            </div>
+        `;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        fetch('/save_msg', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({role:role, content:text})
+        });
+    }
+
+    function down(type,text){
+        let url = type==='summary' ? '/export_summary' : '/export_trans';
+        fetch(url,{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({content:text})
+        }).then(res=>{
+            if(res.status!==200){
+                alert("无有效内容可导出");
+                return;
+            }
+            return res.blob();
+        }).then(b=>{
+            if(!b)return;
+            let a = document.createElement('a');
+            a.href=URL.createObjectURL(b);
+            a.download = type==='summary'?'文档摘要.txt':'翻译结果.txt';
+            a.click();
+        })
+    }
+
+    function sendMsg(){
+        let v = document.getElementById('inputText').value.trim();
+        if(!v)return;
+        addMsg('我',v,'user',false);
+        document.getElementById('inputText').value='';
+        let load = document.createElement('div');
+        load.className='msg';
+        load.innerHTML='<div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble loading">思考中...</div>';
+        chatBox.appendChild(load);
+
+        fetch('/chat',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({query:v})
+        }).then(r=>r.json()).then(d=>{
+            chatBox.removeChild(load);
+            addMsg('AI',d.answer,'ai',false);
+        })
+    }
+
+    function uploadKb(){
+        let f = document.getElementById('file').files[0];
+        if(!f)return;
+        let fd=new FormData();
+        fd.append('file',f);
+        fetch('/upload_kb',{method:'POST',body:fd})
+        .then(r=>r.json())
+        .then(d=>alert(d.msg))
+    }
+    function clearChat(){chatBox.innerHTML=''}
+    function exportChat(){window.open('/export_chat')}
+</script>
+</body>
+</html>
